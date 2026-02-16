@@ -117,6 +117,18 @@
         .btn-danger:hover { background: #ff475744; }
         .btn-copy { background: #2ed57322; color: #2ed573; }
         .btn-copy:hover { background: #2ed57344; }
+        .search-bar {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            background: #0f0f23;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+        .search-bar:focus { outline: none; border-color: #7c83ff; }
+        .no-results { text-align: center; padding: 2rem; color: #666; }
         .empty-state {
             text-align: center;
             padding: 3rem;
@@ -149,6 +161,8 @@
             <textarea id="snippet-code" placeholder="Paste your code here..."></textarea>
             <button class="btn btn-primary" onclick="addSnippet()">Save Snippet</button>
         </div>
+
+        <input type="text" class="search-bar" id="search-bar" placeholder="Search snippets..." oninput="renderSnippets()">
 
         <div class="snippets-header">
             <h2>Your Snippets</h2>
@@ -191,14 +205,25 @@
         function renderSnippets() {
             const list = document.getElementById('snippet-list');
             const count = document.getElementById('snippet-count');
-            count.textContent = `${snippets.length} snippet${snippets.length !== 1 ? 's' : ''}`;
+            const query = (document.getElementById('search-bar').value || '').toLowerCase();
+
+            const filtered = snippets.filter(s =>
+                !query || s.title.toLowerCase().includes(query) || s.code.toLowerCase().includes(query)
+            );
+
+            count.textContent = `${filtered.length} snippet${filtered.length !== 1 ? 's' : ''}`;
 
             if (snippets.length === 0) {
                 list.innerHTML = '<div class="empty-state">No snippets yet. Add one above!</div>';
                 return;
             }
 
-            list.innerHTML = snippets.map(s => `
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="no-results">No snippets match your search.</div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map(s => `
                 <div class="snippet-card">
                     <div class="snippet-header">
                         <span class="snippet-title">${escapeHtml(s.title)}</span>
