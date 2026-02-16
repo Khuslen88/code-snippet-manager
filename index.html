@@ -152,6 +152,17 @@
             cursor: pointer;
         }
         .tag-filter.active { background: #e17055; color: #fff; border-color: #e17055; }
+        .toolbar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .btn-secondary {
+            padding: 0.5rem 1rem;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            background: transparent;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-secondary:hover { background: #2a2a4a; color: #e0e0e0; }
         .empty-state {
             text-align: center;
             padding: 3rem;
@@ -188,6 +199,12 @@
 
         <input type="text" class="search-bar" id="search-bar" placeholder="Search snippets..." oninput="renderSnippets()">
         <div class="tag-filter-bar" id="tag-filter-bar"></div>
+
+        <div class="toolbar">
+            <button class="btn-secondary" onclick="exportSnippets()">Export JSON</button>
+            <button class="btn-secondary" onclick="document.getElementById('import-file').click()">Import JSON</button>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importSnippets(event)">
+        </div>
 
         <div class="snippets-header">
             <h2>Your Snippets</h2>
@@ -307,6 +324,37 @@
                 btn.textContent = 'Copied!';
                 setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
             });
+        }
+
+        function exportSnippets() {
+            const blob = new Blob([JSON.stringify(snippets, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'snippets.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importSnippets(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!Array.isArray(data)) throw new Error('Invalid format');
+                    const valid = data.every(s => s.title && s.code && s.lang);
+                    if (!valid) throw new Error('Invalid snippet data');
+                    snippets = [...data, ...snippets];
+                    saveSnippets();
+                    renderSnippets();
+                } catch (err) {
+                    alert('Invalid file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
         }
 
         function escapeHtml(str) {
