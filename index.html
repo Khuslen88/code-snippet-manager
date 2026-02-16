@@ -117,6 +117,16 @@
         .btn-danger:hover { background: #ff475744; }
         .btn-copy { background: #2ed57322; color: #2ed573; }
         .btn-copy:hover { background: #2ed57344; }
+        .btn-fav {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0.2rem 0.4rem;
+            transition: transform 0.2s;
+        }
+        .btn-fav:hover { transform: scale(1.3); }
+        .snippet-card.favorited { border-left: 3px solid #ffd700; }
         .search-bar {
             width: 100%;
             padding: 0.7rem 1rem;
@@ -152,6 +162,37 @@
             cursor: pointer;
         }
         .tag-filter.active { background: #e17055; color: #fff; border-color: #e17055; }
+        .category-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+        .category-btn {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.7rem;
+            border-radius: 10px;
+            border: 1px solid #2a2a4a;
+            background: transparent;
+            color: #aaa;
+            cursor: pointer;
+        }
+        .category-btn.active { background: #7c83ff; color: #fff; border-color: #7c83ff; }
+        .category-btn:hover { background: #2a2a4a; color: #e0e0e0; }
+        .category-btn.active:hover { background: #6a71e0; }
+        .snippet-category {
+            font-size: 0.7rem;
+            background: #7c83ff33;
+            color: #7c83ff;
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+        }
+        .category-input-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+        .category-input-row select { flex: 1; }
+        .category-input-row input {
+            flex: 1;
+            padding: 0.6rem 1rem;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            background: #0f0f23;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+        }
         .toolbar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
         .btn-secondary {
             padding: 0.5rem 1rem;
@@ -193,12 +234,19 @@
                 </select>
             </div>
             <input type="text" id="snippet-tags" placeholder="Tags (comma-separated, e.g. utils, async)" style="width:100%;padding:0.6rem 1rem;border:1px solid #2a2a4a;border-radius:8px;background:#0f0f23;color:#e0e0e0;font-size:0.95rem;margin-bottom:1rem;">
+            <div class="category-input-row">
+                <select id="snippet-category">
+                    <option value="">No category</option>
+                </select>
+                <input type="text" id="new-category" placeholder="Or type new category...">
+            </div>
             <textarea id="snippet-code" placeholder="Paste your code here..."></textarea>
             <button class="btn btn-primary" onclick="addSnippet()">Save Snippet</button>
         </div>
 
         <input type="text" class="search-bar" id="search-bar" placeholder="Search snippets..." oninput="renderSnippets()">
         <div class="tag-filter-bar" id="tag-filter-bar"></div>
+        <div class="category-bar" id="category-bar"></div>
 
         <div class="toolbar">
             <button class="btn-secondary" onclick="exportSnippets()">Export JSON</button>
@@ -219,6 +267,29 @@
     <script>
         let snippets = loadSnippets();
         let activeTag = null;
+        let activeCategory = null;
+        let categories = loadCategories();
+
+        function loadCategories() {
+            try {
+                return JSON.parse(localStorage.getItem('categories') || '[]');
+            } catch { return []; }
+        }
+
+        function saveCategories() {
+            localStorage.setItem('categories', JSON.stringify(categories));
+        }
+
+        function toggleCategory(cat) {
+            activeCategory = activeCategory === cat ? null : cat;
+            renderSnippets();
+        }
+
+        function populateCategoryDropdown() {
+            const sel = document.getElementById('snippet-category');
+            sel.innerHTML = '<option value="">No category</option>' +
+                categories.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
 
         function loadSnippets() {
             try {
@@ -236,8 +307,18 @@
             const code = document.getElementById('snippet-code').value;
             const tagsRaw = document.getElementById('snippet-tags').value;
             const tags = tagsRaw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+            const newCat = document.getElementById('new-category').value.trim();
+            const selectedCat = document.getElementById('snippet-category').value;
+            const category = newCat || selectedCat || '';
 
             if (!title || !code) return;
+
+            if (newCat && !categories.includes(newCat)) {
+                categories.push(newCat);
+                categories.sort();
+                saveCategories();
+                populateCategoryDropdown();
+            }
 
             snippets.unshift({
                 id: Date.now(),
@@ -245,12 +326,15 @@
                 lang,
                 code,
                 tags,
+                category,
                 createdAt: new Date().toISOString()
             });
 
             document.getElementById('snippet-title').value = '';
             document.getElementById('snippet-tags').value = '';
             document.getElementById('snippet-code').value = '';
+            document.getElementById('new-category').value = '';
+            document.getElementById('snippet-category').value = '';
             saveSnippets();
             renderSnippets();
         }
@@ -258,6 +342,15 @@
         function toggleTag(tag) {
             activeTag = activeTag === tag ? null : tag;
             renderSnippets();
+        }
+
+        function toggleFavorite(id) {
+            const snippet = snippets.find(s => s.id === id);
+            if (snippet) {
+                snippet.favorite = !snippet.favorite;
+                saveSnippets();
+                renderSnippets();
+            }
         }
 
         function deleteSnippet(id) {
@@ -277,11 +370,20 @@
                 `<button class="tag-filter ${activeTag === t ? 'active' : ''}" onclick="toggleTag('${t}')">${t}</button>`
             ).join('');
 
+            // Render category filter bar
+            const allCats = [...new Set(snippets.map(s => s.category).filter(Boolean))].sort();
+            document.getElementById('category-bar').innerHTML = allCats.map(c =>
+                `<button class="category-btn ${activeCategory === c ? 'active' : ''}" onclick="toggleCategory('${c}')">${c}</button>`
+            ).join('');
+
             const filtered = snippets.filter(s => {
                 const matchesSearch = !query || s.title.toLowerCase().includes(query) || s.code.toLowerCase().includes(query);
                 const matchesTag = !activeTag || (s.tags || []).includes(activeTag);
-                return matchesSearch && matchesTag;
+                const matchesCategory = !activeCategory || s.category === activeCategory;
+                return matchesSearch && matchesTag && matchesCategory;
             });
+
+            filtered.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
 
             count.textContent = `${filtered.length} snippet${filtered.length !== 1 ? 's' : ''}`;
 
@@ -296,10 +398,12 @@
             }
 
             list.innerHTML = filtered.map(s => `
-                <div class="snippet-card">
+                <div class="snippet-card ${s.favorite ? 'favorited' : ''}">
                     <div class="snippet-header">
                         <span class="snippet-title">${escapeHtml(s.title)}</span>
                         <div class="snippet-actions">
+                            <button class="btn-fav" onclick="toggleFavorite(${s.id})">${s.favorite ? '★' : '☆'}</button>
+                            ${s.category ? `<span class="snippet-category" onclick="toggleCategory('${s.category}')">${s.category}</span>` : ''}
                             <span class="snippet-lang">${s.lang}</span>
                             <button class="btn-small btn-copy" onclick="copySnippet(${s.id}, this)">Copy</button>
                             <button class="btn-small btn-danger" onclick="deleteSnippet(${s.id})">Delete</button>
@@ -363,6 +467,7 @@
             return div.innerHTML;
         }
 
+        populateCategoryDropdown();
         renderSnippets();
     </script>
 </body>
