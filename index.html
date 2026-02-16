@@ -11,21 +11,212 @@
             background: #1a1a2e;
             color: #e0e0e0;
             min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { font-size: 2rem; color: #7c83ff; margin-bottom: 1.5rem; }
+
+        /* Form */
+        .form-section {
+            background: #16213e;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        .form-section h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #aaa; }
+        .form-row { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .form-row input, .form-row select {
+            flex: 1;
+            padding: 0.6rem 1rem;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            background: #0f0f23;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+        }
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 0.8rem 1rem;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            background: #0f0f23;
+            color: #e0e0e0;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+            margin-bottom: 1rem;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #7c83ff;
+        }
+        .btn {
+            padding: 0.6rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+        }
+        .btn-primary { background: #7c83ff; color: #fff; }
+        .btn-primary:hover { background: #6a71e0; }
+
+        /* Snippet cards */
+        .snippets-header {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
+            margin-bottom: 1rem;
         }
-        h1 {
-            font-size: 2rem;
+        .snippets-header h2 { font-size: 1.1rem; color: #aaa; }
+        .snippet-count { color: #666; font-size: 0.85rem; }
+        .snippet-card {
+            background: #16213e;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .snippet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.2rem;
+            border-bottom: 1px solid #2a2a4a;
+        }
+        .snippet-title { font-weight: 600; color: #e0e0e0; }
+        .snippet-lang {
+            font-size: 0.75rem;
+            background: #7c83ff22;
             color: #7c83ff;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
         }
-        p { color: #888; margin-top: 0.5rem; }
+        .snippet-actions { display: flex; gap: 0.5rem; align-items: center; }
+        .snippet-code {
+            padding: 1rem 1.2rem;
+            overflow-x: auto;
+        }
+        .snippet-code pre {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            color: #c8c8d0;
+        }
+        .btn-small {
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-danger { background: #ff475722; color: #ff4757; }
+        .btn-danger:hover { background: #ff475744; }
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #555;
+        }
     </style>
 </head>
 <body>
-    <div>
+    <div class="container">
         <h1>Code Snippet Manager</h1>
-        <p>Coming soon...</p>
+
+        <div class="form-section">
+            <h2>New Snippet</h2>
+            <div class="form-row">
+                <input type="text" id="snippet-title" placeholder="Snippet title...">
+                <select id="snippet-lang">
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="html">HTML</option>
+                    <option value="css">CSS</option>
+                    <option value="java">Java</option>
+                    <option value="cpp">C++</option>
+                    <option value="go">Go</option>
+                    <option value="rust">Rust</option>
+                    <option value="sql">SQL</option>
+                    <option value="bash">Bash</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <textarea id="snippet-code" placeholder="Paste your code here..."></textarea>
+            <button class="btn btn-primary" onclick="addSnippet()">Save Snippet</button>
+        </div>
+
+        <div class="snippets-header">
+            <h2>Your Snippets</h2>
+            <span class="snippet-count" id="snippet-count">0 snippets</span>
+        </div>
+        <div id="snippet-list">
+            <div class="empty-state">No snippets yet. Add one above!</div>
+        </div>
     </div>
+
+    <script>
+        let snippets = [];
+
+        function addSnippet() {
+            const title = document.getElementById('snippet-title').value.trim();
+            const lang = document.getElementById('snippet-lang').value;
+            const code = document.getElementById('snippet-code').value;
+
+            if (!title || !code) return;
+
+            snippets.unshift({
+                id: Date.now(),
+                title,
+                lang,
+                code,
+                createdAt: new Date().toISOString()
+            });
+
+            document.getElementById('snippet-title').value = '';
+            document.getElementById('snippet-code').value = '';
+            renderSnippets();
+        }
+
+        function deleteSnippet(id) {
+            snippets = snippets.filter(s => s.id !== id);
+            renderSnippets();
+        }
+
+        function renderSnippets() {
+            const list = document.getElementById('snippet-list');
+            const count = document.getElementById('snippet-count');
+            count.textContent = `${snippets.length} snippet${snippets.length !== 1 ? 's' : ''}`;
+
+            if (snippets.length === 0) {
+                list.innerHTML = '<div class="empty-state">No snippets yet. Add one above!</div>';
+                return;
+            }
+
+            list.innerHTML = snippets.map(s => `
+                <div class="snippet-card">
+                    <div class="snippet-header">
+                        <span class="snippet-title">${escapeHtml(s.title)}</span>
+                        <div class="snippet-actions">
+                            <span class="snippet-lang">${s.lang}</span>
+                            <button class="btn-small btn-danger" onclick="deleteSnippet(${s.id})">Delete</button>
+                        </div>
+                    </div>
+                    <div class="snippet-code">
+                        <pre><code>${escapeHtml(s.code)}</code></pre>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        renderSnippets();
+    </script>
 </body>
 </html>
