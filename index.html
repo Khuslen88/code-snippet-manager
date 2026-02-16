@@ -115,6 +115,8 @@
         }
         .btn-danger { background: #ff475722; color: #ff4757; }
         .btn-danger:hover { background: #ff475744; }
+        .btn-copy { background: #2ed57322; color: #2ed573; }
+        .btn-copy:hover { background: #2ed57344; }
         .empty-state {
             text-align: center;
             padding: 3rem;
@@ -202,6 +204,7 @@
                         <span class="snippet-title">${escapeHtml(s.title)}</span>
                         <div class="snippet-actions">
                             <span class="snippet-lang">${s.lang}</span>
+                            <button class="btn-small btn-copy" onclick="copySnippet(${s.id}, this)">Copy</button>
                             <button class="btn-small btn-danger" onclick="deleteSnippet(${s.id})">Delete</button>
                         </div>
                     </div>
@@ -213,6 +216,15 @@
 
             document.querySelectorAll('.snippet-code pre code').forEach(el => {
                 hljs.highlightElement(el);
+            });
+        }
+
+        function copySnippet(id, btn) {
+            const snippet = snippets.find(s => s.id === id);
+            if (!snippet) return;
+            navigator.clipboard.writeText(snippet.code).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
             });
         }
 
